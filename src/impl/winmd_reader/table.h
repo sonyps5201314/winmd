@@ -1,6 +1,9 @@
 
 namespace winmd::reader
 {
+	template<class T>
+    struct TypeBase;
+
     struct database;
     struct cache;
 
@@ -225,6 +228,7 @@ namespace winmd::reader
     template <typename Row>
     struct row_base
     {
+        friend struct TypeBase<Row>;
         using iterator_category = std::random_access_iterator_tag;
         using value_type = Row;
         using difference_type = int32_t;
