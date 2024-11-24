@@ -126,4 +126,21 @@ namespace winmd::reader
 
         return false;
     };
+
+	template<class T>
+	Architecture GetSupportedArchitectures(const T& type)
+	{
+		Architecture arches = Architecture::None;
+		auto const attr = get_attribute(type, "Windows.Win32.Foundation.Metadata", "SupportedArchitectureAttribute");
+		if (attr)
+		{
+			CustomAttributeSig attr_sig = attr.Value();
+			FixedArgSig fixed_arg = attr_sig.FixedArgs()[0];
+			ElemSig elem_sig = std::get<ElemSig>(fixed_arg.value);
+			ElemSig::EnumValue enum_value = std::get<ElemSig::EnumValue>(elem_sig.value);
+			auto const arch_flags = std::get<int32_t>(enum_value.value);
+			arches = (Architecture)arch_flags;
+		}
+		return arches;
+	}
 }

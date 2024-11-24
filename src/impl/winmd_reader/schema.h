@@ -1,18 +1,98 @@
 
 namespace winmd::reader
 {
-    struct TypeRef : row_base<TypeRef>
+	//https://github.com/microsoft/win32metadata/blob/main/sources/MetadataUtils/Architecture.cs
+    //output \win32\impl\Windows.Win32.Foundation.Metadata.0.h
+	enum Architecture
+	{
+		None = 0,
+		X86 = 1,
+		X64 = 2,
+		Arm64 = 4,
+		All = X64 | X86 | Arm64
+	};
+
+	auto ArchesToName(Architecture arches)
+	{
+		std::string str;
+		if (arches != Architecture::None)
+		{
+			bool has_least_one = false;
+			if (arches & Architecture::X86)
+			{
+				str += "X86";
+				has_least_one = true;
+			}
+			if (arches & Architecture::X64)
+			{
+				if (has_least_one)
+				{
+					str += "|";
+				}
+				str += "X64";
+				has_least_one = true;
+			}
+			if (arches & Architecture::Arm64)
+			{
+				if (has_least_one)
+				{
+					str += "|";
+				}
+				str += "Arm64";
+				has_least_one = true;
+			}
+		}
+		return str;
+	}
+
+    template<class T>
+	Architecture GetSupportedArchitectures(const T& type);
+
+    template<class T>
+    struct TypeBase
+    {
+		auto TypeDisplayName() const
+		{
+            T* pThis = (T*)this;
+			return pThis->get_string(1);
+		}
+
+	private:
+        uint32_t m_index_last;
+        std::string_view full_type_name;
+		static void CheckForInitializeFullTypeName(TypeBase* pThis)
+		{
+            T* pThisT = (T*)pThis;
+			if (pThis->m_index_last != pThisT->m_index || pThis->full_type_name.empty())
+			{
+                pThis->m_index_last = pThisT->m_index;
+
+				std::string name(pThis->TypeDisplayName());
+				Architecture arches = GetSupportedArchitectures(*pThisT);
+				if (arches != Architecture::None)
+				{
+					name += "@";
+					name += ArchesToName(arches);
+				}
+                pThis->full_type_name = _strdup(name.c_str());//std::string_view类太坑爹了，又是一个提早优化的垃圾设计。暂时有内存泄露，后面注意要修复！！！
+			}
+		}
+	public:
+		auto TypeName() const
+		{
+            CheckForInitializeFullTypeName((TypeBase*)this);
+            return full_type_name;
+		}
+
+    };
+
+    struct TypeRef : row_base<TypeRef>, TypeBase<TypeRef>
     {
         using row_base::row_base;
 
         auto ResolutionScope() const
         {
             return get_coded_index<reader::ResolutionScope>(0);
-        }
-
-        auto TypeName() const
-        {
-            return get_string(1);
         }
 
         auto TypeNamespace() const
@@ -42,18 +122,13 @@ namespace winmd::reader
         auto TypeNamespaceAndName() const;
     };
 
-    struct TypeDef : row_base<TypeDef>
+    struct TypeDef : row_base<TypeDef>, TypeBase<TypeDef>
     {
         using row_base::row_base;
 
         auto Flags() const
         {
             return TypeAttributes{{ get_value<uint32_t>(0) }};
-        }
-
-        auto TypeName() const
-        {
-            return get_string(1);
         }
 
         auto TypeNamespace() const
