@@ -13,7 +13,7 @@ namespace winmd::reader
         return range.second - range.first;
     }
 
-    inline auto find(TypeRef const& type)
+    inline auto find(TypeRef const& type, Architecture arches)
     {
         if (type.ResolutionScope().type() != ResolutionScope::TypeRef)
         {
@@ -21,11 +21,29 @@ namespace winmd::reader
         }
         else
         {
-            auto enclosing_type = find(type.ResolutionScope().TypeRef());
+            auto enclosing_type = find(type.ResolutionScope().TypeRef(), arches);
             if (!enclosing_type)
             {
                 return TypeDef{};
             }
+			if (arches == Architecture::None)
+			{
+				arches = Architecture::All;
+			}
+			auto pType = &enclosing_type;
+			do
+			{
+				Architecture pType_arches = GetSupportedArchitectures(*pType);
+				if (pType_arches == Architecture::None)
+				{
+					pType_arches = Architecture::All;
+				}
+				if (pType_arches & arches)
+				{
+					enclosing_type = *pType;
+					break;
+				}
+			} while (pType = pType->next);
             auto const& nested_types = enclosing_type.get_cache().nested_types(enclosing_type);
             auto iter = std::find_if(nested_types.begin(), nested_types.end(),
                 [name = type.TypeName()](TypeDef const& arg)
@@ -63,11 +81,11 @@ namespace winmd::reader
         }
     }
 
-    inline TypeDef find(coded_index<TypeDefOrRef> const& type)
+    inline TypeDef find(coded_index<TypeDefOrRef> const& type, Architecture arches)
     {
         if (type.type() == TypeDefOrRef::TypeRef)
         {
-            return find(type.TypeRef());
+            return find(type.TypeRef(), arches);
         }
         else if (type.type() == TypeDefOrRef::TypeDef)
         {

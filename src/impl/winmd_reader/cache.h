@@ -22,7 +22,27 @@ namespace winmd::reader
                     }
 
                     auto& ns = m_namespaces[type.TypeNamespace()];
-                    ns.types.try_emplace(type.TypeName(), type);
+                    std::string_view name = type.TypeName();
+                    auto fpos = name.rfind('@');
+                    if (fpos != std::string_view::npos)
+                    {
+                        auto same_name = name.substr(0, fpos);
+                        auto it = ns.types_same_name.find(same_name);
+                        if (it == ns.types_same_name.end())
+                        {
+                            ns.types_same_name.try_emplace(same_name, std::vector<TypeDef>{ type });
+                        }
+                        else
+                        {
+							std::vector<TypeDef>& vec= it->second;
+                            vec.push_back(type);
+							for (size_t i = 0; i < vec.size() - 1; i++)
+							{
+								vec[i].next = &vec[i + 1];
+							}
+                        }
+                    }
+                    ns.types.try_emplace(name, type);
                 }
 
                 for (auto&& row : db.NestedClass)
@@ -75,6 +95,11 @@ namespace winmd::reader
 
             if (type == ns->second.types.end())
             {
+				auto it = ns->second.types_same_name.find(type_name);
+				if (it != ns->second.types_same_name.end())
+				{
+					return it->second.at(0);
+				}
                 return {};
             }
 
@@ -205,6 +230,7 @@ namespace winmd::reader
         struct namespace_members
         {
             std::map<std::string_view, TypeDef> types;
+            std::map<std::string_view, std::vector<TypeDef>> types_same_name;
             std::vector<TypeDef> interfaces;
             std::vector<TypeDef> classes;
             std::vector<TypeDef> enums;

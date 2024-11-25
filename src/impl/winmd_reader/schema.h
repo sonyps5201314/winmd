@@ -124,6 +124,8 @@ namespace winmd::reader
 
     struct TypeDef : row_base<TypeDef>, TypeBase<TypeDef>
     {
+        TypeDef* next = nullptr;
+
         using row_base::row_base;
 
         auto Flags() const
