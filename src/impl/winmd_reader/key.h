@@ -186,7 +186,7 @@ namespace winmd::reader
 
     inline category get_category(TypeDef const& type)
     {
-        if (type.Flags().Semantics() == TypeSemantics::Interface || get_attribute(type, "System.Runtime.InteropServices"sv, "GuidAttribute"sv))
+        if (type.Flags().Semantics() == TypeSemantics::Interface || get_attribute(type, "Windows.Win32.Foundation.Metadata"sv, "GuidAttribute"sv))
         {
             return category::interface_type;
         }
